@@ -10,9 +10,10 @@ mcp = FastMCP("Research Tools")
 def get_research_sources() -> list[str]:
     """Provides 0 to 3 random research sources."""
     search_sources = [
-        "Wikipedia",
-        "Google",
-        "YouTube",
+        #"Wikipedia",
+        #"Google",
+        #"YouTube",
+        
     ]
     num_sources = random.randint(0, 3)
     if num_sources == 0:

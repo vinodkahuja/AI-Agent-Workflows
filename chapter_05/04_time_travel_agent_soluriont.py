@@ -117,7 +117,7 @@ If the answer is correct (0 days) provide the final answer and plan.
 If the answer is not correct, continue reasoning and try to find the correct answer.
     """
     agent = Agent(
-        model="qwen3",
+        model="gpt-oss",
         name="Time Travel Agent",
         instructions=instructions,
         tools=[

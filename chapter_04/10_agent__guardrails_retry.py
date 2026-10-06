@@ -135,7 +135,7 @@ Always hand off to the filesystem agent.
         name="Filesystem Agent",
         instructions="""
 You are a filesystem assistant.
-Your role is to write the output as a text file.
+Your role is to write the output as a text file as .txt.
 Never make up or invent any ouput.
 """,
         model="gpt-oss",
