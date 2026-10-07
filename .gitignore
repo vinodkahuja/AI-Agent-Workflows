@@ -186,3 +186,6 @@ chapter_08/piper_voices/
 # Stray test artifacts
 test.jpg
 
+
+# Claude Code project instructions (local only)
+CLAUDE.md
