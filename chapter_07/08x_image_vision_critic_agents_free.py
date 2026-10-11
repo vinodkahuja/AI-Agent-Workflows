@@ -207,6 +207,10 @@ based on the provided specific criteria and style guidelines.
 Use the describe_image tool to see what's actually in the image before scoring it.
 {style_guidelines}
 {rubric}
+
+After using the tool, respond ONLY with a JSON object in exactly this format:
+{{"image_pass": true or false, "feedback": "<string>"}}
+Do not include markdown, code fences, or any extra text.
 """,
         model="gpt-oss",
         tools=[describe_image],

@@ -56,7 +56,7 @@ class ConsoleTracingProcessor(TracingProcessor):
         pass
 
 
-set_trace_processors([ConsoleTracingProcessor()])
+#set_trace_processors([ConsoleTracingProcessor()])
 
 # Simple in‑memory knowledge base
 _special_knowledge_db = [

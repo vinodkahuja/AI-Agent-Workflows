@@ -133,6 +133,10 @@ You are a grounding agent.
 Your task is to evaluate the correctness of answers
 based on the provided question, context used,
 and output answer.
+
+Respond ONLY with a JSON object in exactly this format:
+{"is_answer_grounded": true or false, "feedback": "<string>"}
+Do not include markdown, code fences, or any extra text.
 """,
     model="gpt-oss",  # Specify the model to use
     output_type=GroundedAnswer,
@@ -150,6 +154,14 @@ for benchmark in _benchmarks:
         answer=result,
     )
     print("" + "=" * 40)
+    # Debug: uncomment to see the raw model output if JSON parsing fails
+    # try:
+    #     grounding = asyncio.run(
+    #         Runner.run(grounding_agent, input=str(grounding_input))
+    #     ).final_output
+    # except Exception as e:
+    #     print(f"Grounding agent failed: {e!r}")
+    #     continue
     grounding = asyncio.run(
         Runner.run(grounding_agent, input=str(grounding_input))
     ).final_output

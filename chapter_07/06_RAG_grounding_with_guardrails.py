@@ -125,6 +125,10 @@ You are a grounding agent.
 Your task is to evaluate the correctness of answers
 based on the provided question, context used,
 and output answer.
+
+Respond ONLY with a JSON object in exactly this format:
+{"is_answer_grounded": true or false, "feedback": "<string>"}
+Do not include markdown, code fences, or any extra text.
 """,
     model="gpt-oss",  # Specify the model to use
     output_type=GroundedAnswer,
@@ -165,6 +169,10 @@ agent = Agent(
 You are a retrieval-augmented knowledge agent.
 Break down the user's query into smaller parts if needed
 to fetch relevant context for the user's query.
+
+After retrieving context, respond ONLY with a JSON object in exactly this format:
+{"question": "<the user's question>", "answer": "<your answer>"}
+Do not include markdown, code fences, or any extra text.
 """,
     output_type=AnswerResult,
     tools=[search_knowledge_by_keyword],
