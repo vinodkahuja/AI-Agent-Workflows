@@ -1,0 +1,39 @@
+# Docker Compose: start the whole chapter 8 stack (three containers) with one command.
+#   cd chapter_08
+#   docker compose up --build        # build and start all three
+#   docker compose down              # stop and remove all three
+# Keys come from ../.env (NRP_API_KEY, NRP_BASE_URL). All three containers use the
+# same image (built from ./Dockerfile); APP_MODULE chooses which app each one runs.
+name: chapter8-agents
+
+# Shared settings, reused by every service below.
+x-agent: &agent
+  build: .
+  image: chapter8-agents
+  env_file: ../.env
+  restart: unless-stopped
+
+services:
+  # Typed web chat with memory
+  web:
+    <<: *agent
+    container_name: chapter8-chat-web
+    environment:
+      APP_MODULE: 01y_web_chat_agent:app
+    ports: ["${WEB_PORT:-8000}:8000"]
+
+  # Image agent with a browser page (gpt-oss + Pollinations.ai)
+  image_agent:
+    <<: *agent
+    container_name: chapter8-image-agent
+    environment:
+      APP_MODULE: 02y_image_web_app:app
+    ports: ["${IMAGE_AGENT_PORT:-8001}:8000"]
+
+  # Web chat whose agent calls MCP tools
+  web_agent:
+    <<: *agent
+    container_name: chapter8-mcp-agent
+    environment:
+      APP_MODULE: 01z_web_chat_mcp_agent:app
+    ports: ["${WEB_AGENT_PORT:-8002}:8000"]
