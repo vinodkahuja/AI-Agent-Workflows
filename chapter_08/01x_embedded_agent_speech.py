@@ -100,19 +100,51 @@ def load_piper_voice() -> PiperVoice:
     return PiperVoice.load(str(voice_path))
 
 
+def pick_input_device():
+    """Choose the mic: AUDIO_INPUT_DEVICE (index or name) if set, else the system default.
+
+    Some machines (e.g. Jetson) have a raw ALSA default that can't capture, so
+    we fall back to the 'pipewire'/'pulse' sound server if the default has no input.
+    """
+    wanted = os.getenv("AUDIO_INPUT_DEVICE")
+    if wanted:
+        return int(wanted) if wanted.isdigit() else wanted
+    default_in = sd.default.device[0]
+    if default_in is not None and default_in >= 0:
+        return default_in
+    for i, dev in enumerate(sd.query_devices()):
+        if dev["max_input_channels"] > 0 and dev["name"] in ("pipewire", "pulse", "default"):
+            return i
+    return None
+
+
 def record_until_enter() -> np.ndarray:
-    """Records audio from the default microphone until the user presses Enter."""
+    """Records from the microphone until the user presses Enter.
+
+    Captures at the device's native sample rate (many devices reject 16 kHz)
+    and resamples to SAMPLE_RATE for Whisper.
+    """
     frames = []
+    device = pick_input_device()
+    native_rate = int(sd.query_devices(device, "input")["default_samplerate"])
 
     def callback(indata, frame_count, time_info, status):
         frames.append(indata.copy())
 
     print("Recording... press Enter to stop.")
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="int16", callback=callback):
+    with sd.InputStream(
+        device=device, samplerate=native_rate, channels=1, dtype="int16", callback=callback
+    ):
         input()
     if not frames:
         return np.zeros((0,), dtype="int16")
-    return np.concatenate(frames, axis=0)
+    audio = np.concatenate(frames, axis=0)[:, 0].astype(np.float32)
+    if native_rate != SAMPLE_RATE:
+        n_out = int(len(audio) * SAMPLE_RATE / native_rate)
+        audio = np.interp(
+            np.linspace(0, len(audio) - 1, n_out), np.arange(len(audio)), audio
+        )
+    return audio.astype("int16")
 
 
 def transcribe(whisper_model: WhisperModel, audio: np.ndarray) -> str:
@@ -132,8 +164,13 @@ def speak(piper_voice: PiperVoice, text: str) -> None:
 
 
 def main():
-    whisper_model = load_whisper()
-    piper_voice = load_piper_voice()
+    # --text : type instead of speaking (no microphone / Whisper needed)
+    # --mute : print the reply only, skip text-to-speech (no speakers needed)
+    text_mode = "--text" in sys.argv
+    mute = "--mute" in sys.argv
+
+    whisper_model = None if text_mode else load_whisper()
+    piper_voice = None if mute else load_piper_voice()
 
     agent = Agent(
         name="Voice Assistant",
@@ -146,25 +183,39 @@ since they will be read aloud. Avoid lists, markdown, or special formatting.
     session = SQLiteSession("voice_agent_free", db_path=":memory:")
 
     print("=== Free NRP Voice Agent (Whisper + gpt-oss + Piper) ===")
-    print("Press Enter to start talking. Type 'q' + Enter at any prompt to quit.\n")
+    if text_mode:
+        print("Text mode: type your message. Type 'q' + Enter to quit.\n")
+    else:
+        print("Press Enter to start talking. Type 'q' + Enter at any prompt to quit.\n")
 
     while True:
-        user_ready = input("Press Enter to record (or 'q' to quit): ")
-        if user_ready.strip().lower() == "q":
-            break
+        if text_mode:
+            user_text = input("You: ").strip()
+            if user_text.lower() == "q":
+                break
+            if not user_text:
+                continue
+        else:
+            user_ready = input("Press Enter to record (or 'q' to quit): ")
+            if user_ready.strip().lower() == "q":
+                break
 
-        audio = record_until_enter()
-        user_text = transcribe(whisper_model, audio)
-        if not user_text:
-            print("(Didn't catch that -- no speech detected.)\n")
-            continue
-        print(f"You said: {user_text}")
+            audio = record_until_enter()
+            user_text = transcribe(whisper_model, audio)
+            if not user_text:
+                print("(Didn't catch that -- no speech detected.)\n")
+                continue
+            print(f"You said: {user_text}")
 
         result = Runner.run_sync(agent, user_text, session=session)
         reply_text = result.final_output
         print(f"Assistant: {reply_text}\n")
 
-        speak(piper_voice, reply_text)
+        if piper_voice:
+            try:
+                speak(piper_voice, reply_text)
+            except Exception as e:
+                print(f"(Could not play audio: {e}. Re-run with --mute to skip speech.)\n")
 
 
 if __name__ == "__main__":
